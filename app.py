@@ -1,71 +1,143 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-st.set_page_config(page_title="Zitro Stock LATAM", layout="wide", page_icon="🎰")
+# 1. CONFIGURACIÓN DE PÁGINA
+st.set_page_config(page_title="Panel de Control - Stock LATAM", layout="wide")
 
-# Estilos CSS
-st.markdown("""
-    <style>
-    .metric-card { background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #ff4b4b; }
-    </style>
-    """, unsafe_allow_html=True)
+# Encabezado principal
+st.title("GESTIÓN DE STOCK – GABINETES PRIME & FANTASY · LATAM")
+st.caption("SOP-LOG-ZITRO-001 · Vigencia: Abril – Junio 2026 | Lead Time: 4 semanas | Nivel de servicio objetivo: 95-98%")
+st.markdown("---")
 
-@st.cache_data
-def load_data():
-    # Ahora lee los archivos limpios
-    panel = pd.read_csv("panel.csv")
-    historico = pd.read_csv("historico.csv")
-    seguimiento = pd.read_csv("seguimiento.csv")
-    ordenes = pd.read_csv("ordenes.csv")
-    return panel, historico, seguimiento, ordenes
+# 2. PARÁMETROS DEL PLAN (ESTÁTICO)
+st.subheader("▌ PARÁMETROS DEL PLAN (SOP-LOG-ZITRO-001)")
+parametros_data = {
+    "Indicador": ["Demanda Semanal Ajustada (+20%)", "Stock de Seguridad (Mínimo)", "Punto de Pedido (ROP)", "Stock Máximo de Almacén"],
+    "PRIME": [50, 35, 235, 300],
+    "FANTASY": [22, 20, 108, 130]
+}
+st.dataframe(pd.DataFrame(parametros_data), hide_index=True, use_container_width=True)
 
-try:
-    panel, historico, seguimiento, ordenes = load_data()
+st.markdown("---")
 
-    menu = st.sidebar.radio("Ir a:", ["🏠 Panel de Control", "📈 Histórico y Análisis", "📅 Seguimiento Semanal", "📋 Registro de Órdenes"])
+# 3. SECCIÓN EDITABLE (ENTRADA MANUAL)
+st.subheader("▌ STOCK ACTUAL Y FABRICACIONES PENDIENTES (entrada manual)")
+st.info("ℹ️ Modifica los valores a continuación. El sistema calculará automáticamente los indicadores de abajo.")
 
-    if menu == "🏠 Panel de Control":
-        st.header("Gestión de Stock - Gabinetes PRIME & FANTASY")
-        
-        col1, col2 = st.columns(2)
-        
-        # Extraer datos dinámicamente del CSV para PRIME (Fila 0)
-        with col1:
-            st.subheader(f"Modelo {panel.iloc[0]['Modelo']}")
-            st.error(f"🔴 ESTADO: {panel.iloc[0]['Estado']}")
-            st.metric("Inventario Disponible", str(panel.iloc[0]['Inventario_Disponible']))
-            st.info(f"💡 Orden Sugerida: {panel.iloc[0]['Orden_Sugerida']} unidades")
-            
-        # Extraer datos dinámicamente del CSV para FANTASY (Fila 1)
-        with col2:
-            st.subheader(f"Modelo {panel.iloc[1]['Modelo']}")
-            st.error(f"🔴 ESTADO: {panel.iloc[1]['Estado']}")
-            st.metric("Inventario Disponible", str(panel.iloc[1]['Inventario_Disponible']))
-            st.info(f"💡 Orden Sugerida: {panel.iloc[1]['Orden_Sugerida']} unidades")
+col1, col2, col3 = st.columns([2, 1, 1])
+with col1:
+    st.write("**Campo**")
+    st.write("🔵 Stock Físico Actual")
+    st.write("🔵 Fabricaciones Pendientes Aprobadas (en tránsito)")
+    st.write("🔴 Pedidos en Firme (comprometidos)")
+    st.write("🟡 Presupuesto / Forecast (unidades)")
 
-    elif menu == "📈 Histórico y Análisis":
-        st.header("Análisis de Ventas y Tendencias")
-        fig = px.bar(historico, x='Mes', y=['PRIME_Ventas', 'FANTASY_Ventas'], 
-                     title="Histórico de Ventas Mensuales", barmode='group')
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(historico, use_container_width=True)
+with col2:
+    st.write("**PRIME**")
+    sf_prime = st.number_input("Stock Físico PRIME", value=142, step=1, label_visibility="collapsed")
+    fab_prime = st.number_input("Fabricaciones PRIME", value=115, step=1, label_visibility="collapsed")
+    pedidos_prime = st.number_input("Pedidos PRIME", value=151, step=1, label_visibility="collapsed")
+    forecast_prime = st.number_input("Forecast PRIME", value=608, step=1, label_visibility="collapsed")
 
-    elif menu == "📅 Seguimiento Semanal":
-        st.header("Cronograma de Disponibilidad")
-        st.dataframe(seguimiento, use_container_width=True)
+with col3:
+    st.write("**FANTASY**")
+    sf_fantasy = st.number_input("Stock Físico FANTASY", value=53, step=1, label_visibility="collapsed")
+    fab_fantasy = st.number_input("Fabricaciones FANTASY", value=50, step=1, label_visibility="collapsed")
+    pedidos_fantasy = st.number_input("Pedidos FANTASY", value=72, step=1, label_visibility="collapsed")
+    forecast_fantasy = st.number_input("Forecast FANTASY", value=252, step=1, label_visibility="collapsed")
 
-    elif menu == "📋 Registro de Órdenes":
-        st.header("Control de Órdenes de Fabricación")
-        estado = st.selectbox("Filtrar por Estado:", ["Todas"] + list(ordenes['Estado_Aprobacion'].dropna().unique()))
-        
-        if estado != "Todas":
-            df_ord = ordenes[ordenes['Estado_Aprobacion'] == estado]
-        else:
-            df_ord = ordenes
-            
-        st.table(df_ord.dropna(subset=['N_Orden']))
+# --- LÓGICA DE CÁLCULO ---
+# Inventario Disponible
+inv_disp_prime = sf_prime + fab_prime - pedidos_prime
+inv_disp_fantasy = sf_fantasy + fab_fantasy - pedidos_fantasy
 
-except Exception as e:
-    st.error(f"Error al cargar la aplicación: {e}")
-    st.warning("Verifica que los 4 archivos (panel.csv, historico.csv, seguimiento.csv, ordenes.csv) estén subidos a tu GitHub.")
+# Funciones de estado
+def estado_pedidos(inv, rop, seg):
+    if inv <= seg: return "🔴 ALERTA ROJA"
+    elif inv <= rop: return "🟠 LANZAR ORDEN"
+    elif inv > rop * 1.5: return "⚠️ SOBRE MÁXIMO"
+    else: return "✅ OK / CUBIERTO"
+
+def estado_forecast(inv, forecast):
+    diff = inv - forecast
+    if diff < -100: return "🔴 DÉFICIT ALTO"
+    elif diff < 0: return "🟡 DÉFICIT LEVE"
+    else: return "✅ OK / CUBIERTO"
+
+st.markdown("---")
+
+# 4. CÁLCULO INVENTARIO DISPONIBLE (ESTÁTICO/CALCULADO)
+st.subheader("▌ CÁLCULO: INVENTARIO DISPONIBLE")
+st.caption("Fórmula: Stock Físico + Fabricaciones en Tránsito − Pedidos en Firme")
+calculo_data = {
+    "Concepto": ["Stock Físico", "(+) Fabricaciones en Tránsito", "(−) Pedidos en Firme", " = Inventario Disponible"],
+    "PRIME": [sf_prime, fab_prime, pedidos_prime, inv_disp_prime],
+    "FANTASY": [sf_fantasy, fab_fantasy, pedidos_fantasy, inv_disp_fantasy]
+}
+st.dataframe(pd.DataFrame(calculo_data), hide_index=True, use_container_width=True)
+
+st.markdown("---")
+
+# 5. ANÁLISIS A Y B (ESTÁTICO/CALCULADO)
+colA, colB = st.columns(2)
+
+with colA:
+    st.subheader("▌ ANÁLISIS A: STOCK vs PEDIDOS FIRME")
+    analisis_a_data = {
+        "Indicador": [
+            "Inventario Disponible", "ROP (Punto de Pedido)", "Stock Máximo", "Stock de Seguridad",
+            "Exceso / Déficit vs ROP", "Orden Sugerida (hasta Stock Máx.)", "Estado vs Pedidos Firme"
+        ],
+        "PRIME": [
+            inv_disp_prime, 235, 300, 35,
+            inv_disp_prime - 235, 
+            max(0, 300 - inv_disp_prime), 
+            estado_pedidos(inv_disp_prime, 235, 35)
+        ],
+        "FANTASY": [
+            inv_disp_fantasy, 108, 130, 20,
+            inv_disp_fantasy - 108, 
+            max(0, 130 - inv_disp_fantasy), 
+            estado_pedidos(inv_disp_fantasy, 108, 20)
+        ]
+    }
+    st.dataframe(pd.DataFrame(analisis_a_data), hide_index=True, use_container_width=True)
+
+with colB:
+    st.subheader("▌ ANÁLISIS B: STOCK vs FORECAST")
+    analisis_b_data = {
+        "Indicador": [
+            "Inventario Disponible", "Presupuesto / Forecast", "Demanda Semanal (plan)",
+            "Semanas de Cobertura (Disp./Dem.Sem.)", "Cobertura vs Forecast (semanas)",
+            "Diferencia Stock – Forecast", "Orden Sugerida vs Forecast", "Estado vs Presupuesto"
+        ],
+        "PRIME": [
+            inv_disp_prime, forecast_prime, 50,
+            round(inv_disp_prime / 50, 2), round(forecast_prime / 50, 2),
+            inv_disp_prime - forecast_prime,
+            max(0, forecast_prime - inv_disp_prime),
+            estado_forecast(inv_disp_prime, forecast_prime)
+        ],
+        "FANTASY": [
+            inv_disp_fantasy, forecast_fantasy, 22,
+            round(inv_disp_fantasy / 22, 2), round(forecast_fantasy / 22, 2),
+            inv_disp_fantasy - forecast_fantasy,
+            max(0, forecast_fantasy - inv_disp_fantasy),
+            estado_forecast(inv_disp_fantasy, forecast_fantasy)
+        ]
+    }
+    st.dataframe(pd.DataFrame(analisis_b_data), hide_index=True, use_container_width=True)
+
+st.markdown("---")
+
+# 6. LEYENDA
+st.subheader("▌ LEYENDA DE ESTADOS")
+leyenda_col1, leyenda_col2 = st.columns(2)
+with leyenda_col1:
+    st.write("✅ **OK / CUBIERTO:** Stock suficiente, sin acción inmediata")
+    st.write("🟡 **DÉFICIT LEVE / LANZAR ORDEN:** Stock por debajo del ROP o Forecast. Preparar orden.")
+    st.write("🟠 **LANZAR ORDEN:** Inventario ≤ Punto de Pedido. Emitir orden inmediata.")
+with leyenda_col2:
+    st.write("🔴 **ALERTA ROJA:** Stock ≤ Seguridad. Agilizar logística, posible exprés.")
+    st.write("🔴 **DÉFICIT ALTO:** Muy por debajo del Forecast.")
+    st.write("⚠️ **SOBRE MÁXIMO:** Exceso de stock. Revisar cancelaciones o sobreproducción.")
