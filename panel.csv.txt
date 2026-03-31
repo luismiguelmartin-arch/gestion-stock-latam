@@ -1,0 +1,3 @@
+Modelo,Inventario_Disponible,ROP,Orden_Sugerida,Estado
+PRIME,106,235,194,DÉFICIT ALTO
+FANTASY,31,108,99,DÉFICIT ALTO
