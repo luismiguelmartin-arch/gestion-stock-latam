@@ -1,6 +1,0 @@
-N_Orden,Gabinete,Fecha_Emision,Cantidad,Estado_Aprobacion
-ORD-001,PRIME,2026-03-30,50,Pendiente
-ORD-002,FANTASY,2026-03-30,30,Aprobada
-ORD-003,PRIME,2026-03-15,100,En Tránsito
-ORD-004,,,,Pendiente
-ORD-005,,,,Pendiente
